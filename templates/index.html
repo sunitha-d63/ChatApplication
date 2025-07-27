@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat + Notifications</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.min.js"></script>
+  <style>
+    body { font-family: Arial; max-width: 600px; margin: 20px auto; }
+    #messages { list-style-type: none; padding: 0; }
+    #messages li { margin-bottom: 5px; }
+    #notification { color: #d9534f; margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <h2>Chat Application</h2>
+  <ul id="messages"></ul>
+
+  <input id="chat_input" type="text" placeholder="Type message...">
+  <button id="send_btn">Send</button>
+
+  <h3>Notifications</h3>
+  <button id="notif_btn">Send Notification</button>
+  <p id="notification"></p>
+
+  <script>
+    const socket = io();
+    const messages = document.getElementById("messages");
+    const chatInput = document.getElementById("chat_input");
+    const sendBtn = document.getElementById("send_btn");
+    const notifBtn = document.getElementById("notif_btn");
+    const notifP = document.getElementById("notification");
+
+    socket.on("connect", () => console.log("Connected to server"));
+
+    socket.on("new_message", (data) => {
+      const li = document.createElement("li");
+      li.textContent = data.user + ": " + data.text;
+      messages.appendChild(li);
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    socket.on("new_notification", (data) => {
+      notifP.textContent = data.title + ": " + data.body;
+      // Browser alert-style popup
+      alert(`Notification: ${data.title}\n${data.body}`);
+    });
+
+    sendBtn.onclick = () => {
+      const text = chatInput.value.trim();
+      if (!text) return;
+      socket.emit("send_message", { user: "You", text });
+      chatInput.value = "";
+    };
+
+    notifBtn.onclick = () => {
+      socket.emit("send_notification", { title: "New Alert", body: "This is a test notification." });
+    };
+  </script>
+</body>
+</html>

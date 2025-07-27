@@ -1,0 +1,66 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8"><title>Chat: {{ room }}</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.min.js"></script>
+  <style>
+    #messages { list-style: none; }
+    .typing { color: #888; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h2>Room: {{ room }}</h2>
+  <ul id="messages">
+    {% for user, text in messages %}
+      <li><strong>{{ user }}:</strong> {{ text }}</li>
+    {% endfor %}
+  </ul>
+  <p id="typing"></p>
+  <input id="msg" autocomplete="off"><button id="send">Send</button>
+  <input type="file" id="file_input"><button id="upload">Upload</button>
+  <script>
+    const user = "{{ session.username }}", room = "{{ room }}";
+    const socket = io();
+    socket.emit('join', {user, room});
+
+    socket.on('message', data => {
+      const li = document.createElement('li');
+      li.innerHTML = `<strong>${data.user}:</strong> ${data.text}`;
+      document.getElementById('messages').appendChild(li);
+    });
+    socket.on('file', data => {
+      const li = document.createElement('li');
+      li.innerHTML = `<strong>${data.user}:</strong> <a href="${data.url}" target="_blank">${data.filename}</a>`;
+      document.getElementById('messages').appendChild(li);
+    });
+    socket.on('typing', d => {
+      document.getElementById('typing').textContent = `${d.user} is typing...`;
+    });
+    socket.on('stop_typing', d => {
+      document.getElementById('typing').textContent = '';
+    });
+
+    const input = document.getElementById('msg');
+    input.addEventListener('input', () => socket.emit('typing', {user, room}));
+    input.addEventListener('blur', () => socket.emit('stop_typing', {user, room}));
+
+    document.getElementById('send').onclick = () => {
+      const text = input.value.trim();
+      if(text) {
+        socket.emit('message', {user, room, text});
+        input.value = '';
+        socket.emit('stop_typing', {user, room});
+      }
+    };
+
+    document.getElementById('upload').onclick = () => {
+      const fileInput = document.getElementById('file_input');
+      if (fileInput.files.length) {
+        const form = new FormData(); form.append('file', fileInput.files[0]);
+        fetch('/uploads', { method: 'POST', body: form }).then(() => {
+          socket.emit('file_upload', {user, room});
+        });
+      }
+    };
+  </script>
+</body>
+</html>
